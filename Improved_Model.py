@@ -404,8 +404,11 @@ def main():
                 st.pyplot(fig_traj)
 
                 # Performance Metrics
+                # Replace the performance metrics section in main() with this:
+
+                # Performance comparison
                 st.header("Performance Metrics")
-                
+
                 try:
                     # Calculate metrics for both strategies
                     ac_costs = ac_trades * backtest_results['price'].values
@@ -415,42 +418,53 @@ def main():
                     ac_shortfall = (ac_costs.sum() - (initial_price * sum(ac_trades))) / (initial_price * X)
                     rl_shortfall = backtest_results['implementation_shortfall'].sum()
                     
-                    # Create metrics dictionary
+                    # Create metrics dictionary with explicit formatting
                     metrics = {
-                        'Implementation Shortfall (RL)': rl_shortfall,
-                        'Implementation Shortfall (AC)': ac_shortfall,
-                        'Average Price (RL)': (backtest_results['price'] * backtest_results['shares_traded']).sum() / 
-                                            backtest_results['shares_traded'].sum(),
-                        'Average Price (AC)': ac_costs.sum() / ac_trades.sum(),
-                        'Price Volatility': backtest_results['price'].std() / backtest_results['price'].mean(),
-                        'Total Shares Traded (RL)': backtest_results['shares_traded'].sum(),
-                        'Total Shares Traded (AC)': ac_trades.sum(),
-                        'Improvement': f"{((ac_shortfall - rl_shortfall)/ac_shortfall)*100:.2f}%"
+                        'Implementation Shortfall (RL)': '{:.4%}'.format(rl_shortfall),
+                        'Implementation Shortfall (AC)': '{:.4%}'.format(ac_shortfall),
+                        'Average Price (RL)': '${:.2f}'.format(
+                            (backtest_results['price'] * backtest_results['shares_traded']).sum() / 
+                            backtest_results['shares_traded'].sum()
+                        ),
+                        'Average Price (AC)': '${:.2f}'.format(
+                            ac_costs.sum() / ac_trades.sum()
+                        ),
+                        'Price Volatility': '{:.4f}'.format(
+                            backtest_results['price'].std() / backtest_results['price'].mean()
+                        ),
+                        'Total Shares Traded (RL)': '{:,}'.format(
+                            int(backtest_results['shares_traded'].sum())
+                        ),
+                        'Total Shares Traded (AC)': '{:,}'.format(
+                            int(ac_trades.sum())
+                        ),
+                        'Improvement': '{:.2%}'.format(
+                            (ac_shortfall - rl_shortfall)/ac_shortfall if ac_shortfall != 0 else 0
+                        )
                     }
                     
-                    # Create metrics DataFrame
+                    # Convert to DataFrame with pre-formatted values
                     metrics_df = pd.DataFrame({
                         'Metric': metrics.keys(),
-                        'Value': [f"{v*100:.4f}%" if 'Shortfall' in k 
-                                else f"${v:.2f}" if 'Price' in k 
-                                else f"{int(v):,}" if 'Shares' in k 
-                                else v if 'Improvement' in k
-                                else f"{v:.4f}" 
-                                for k, v in metrics.items()]
+                        'Value': metrics.values()
                     })
                     st.table(metrics_df)
 
-                    # Add download button for results
+                    # Add download button for results with explicit formatting
                     combined_results = pd.DataFrame({
                         'Time': backtest_results.index,
-                        'RL_Trades': backtest_results['shares_traded'],
-                        'AC_Trades': ac_trades,
-                        'Price': backtest_results['price'],
-                        'RL_Cost': backtest_results['cost'],
-                        'AC_Cost': ac_costs,
-                        'RL_Cumulative': backtest_results['shares_traded'].cumsum(),
-                        'AC_Cumulative': np.cumsum(ac_trades)
+                        'RL_Trades': backtest_results['shares_traded'].round(2),
+                        'AC_Trades': ac_trades.round(2),
+                        'Price': backtest_results['price'].round(2),
+                        'RL_Cost': backtest_results['cost'].round(2),
+                        'AC_Cost': ac_costs.round(2),
+                        'RL_Cumulative': backtest_results['shares_traded'].cumsum().round(2),
+                        'AC_Cumulative': np.cumsum(ac_trades).round(2)
                     })
+                    
+                    # Format numeric columns for download
+                    for col in combined_results.select_dtypes(include=[np.number]).columns:
+                        combined_results[col] = combined_results[col].apply(lambda x: '{:.2f}'.format(x))
                     
                     st.download_button(
                         label="Download Trading Results",
@@ -461,9 +475,11 @@ def main():
 
                 except Exception as e:
                     st.error(f"Error in performance metrics calculation: {str(e)}")
-                    st.error("Details of the shape mismatch:")
-                    st.write(f"AC trades shape: {ac_trades.shape}")
+                    st.write("Debug information:")
+                    st.write(f"AC trades shape: {ac_trades.shape if isinstance(ac_trades, np.ndarray) else len(ac_trades)}")
                     st.write(f"Backtest results shape: {len(backtest_results)}")
+                    st.write("Data types:")
+                    st.write(backtest_results.dtypes)
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
